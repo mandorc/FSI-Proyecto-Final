@@ -1,28 +1,28 @@
 #!/bin/bash
 
-echo "--- MODO EN VIVO: QUANTUM SAFE (KYBER) + WIRESHARK ---"
+echo "--- LIVE MODE: QUANTUM SAFE (KYBER) + WIRESHARK ---"
 
-# 1. Abrir Wireshark inmediatamente en modo captura (-k)
-# Filtramos el puerto 12345 igual que antes
-echo "[*] Abriendo Wireshark para capturar tráfico Quantum..."
+# 1. Open Wireshark immediately in capture mode (-k)
+# We filter port 12345 as before
+echo "[*] Opening Wireshark to capture quantum traffic..."
 wireshark -k -i lo -f "tcp port 12345" -Y "tcp.port == 12345" &
 
-echo "[*] Esperando a que Wireshark cargue..."
+echo "[*] Waiting for Wireshark to load..."
 sleep 5
 
-# 2. Lanza el SERVIDOR PQC (Kyber)
-echo "[*] Lanzando Servidor Post-Quantum (Kyber)..."
-gnome-terminal --title="SERVIDOR PQC (KYBER)" -- bash -c "python3 server_pqc.py; exec bash"
+# 2. Launch the PQC SERVER (Kyber)
+echo "[*] Starting Post-Quantum Server (Kyber)..."
+gnome-terminal --title="PQC SERVER (KYBER)" -- bash -c "python3 server_pqc.py; exec bash"
 
 sleep 2
 
-# 3. Lanza el CLIENTE PQC (Kyber)
-echo "[*] Lanzando Cliente Post-Quantum (Kyber)..."
-gnome-terminal --title="CLIENTE PQC (KYBER)" -- bash -c "python3 client_pqc.py; exec bash"
+# 3. Launch the PQC CLIENT (Kyber)
+echo "[*] Starting Post-Quantum Client (Kyber)..."
+gnome-terminal --title="PQC CLIENT (KYBER)" -- bash -c "python3 client_pqc.py; exec bash"
 
 echo "---------------------------------------------------"
-echo "  ¡SISTEMA QUANTUM ACTIVO!"
-echo "  1. En Wireshark verás paquetes diferentes al anterior."
-echo "  2. El 'Handshake' ahora intercambia matrices de retículos (Kyber),"
-echo "     no números enteros grandes (Diffie-Hellman)."
+echo "  QUANTUM SYSTEM ACTIVE!"
+echo "  1. In Wireshark you'll see packets different than before."
+echo "  2. The handshake now exchanges lattice matrices (Kyber),"
+echo "     not large integers (Diffie-Hellman)."
 echo "---------------------------------------------------"

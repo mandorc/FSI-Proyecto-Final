@@ -22,32 +22,32 @@ KDF_ITERATIONS = 480000
 
 def generate_kyber_keypair() -> Tuple[bytes, bytes, object]:
 
-    print(f"[PQC-Core] Inicializando {KEM_ALG}...", flush=True)
+    print(f"[PQC-Core] Initializing {KEM_ALG}...", flush=True)
     kem = oqs.KeyEncapsulation(KEM_ALG)
     
-    print(f"[PQC-Core] Generando llaves Kyber (Lattices)...", flush=True)
+    print(f"[PQC-Core] Generating Kyber keypair (lattice-based)...", flush=True)
     public_key = kem.generate_keypair()
     secret_key = kem.export_secret_key()
     
     return public_key, secret_key, kem
 
 def kyber_encapsulate(peer_public_key: bytes) -> Tuple[bytes, bytes]:
-    """El CLIENTE encapsula (cierra la caja)."""
-    print(f"[PQC-Core] Encapsulando secreto...", flush=True)
+    """Client encapsulates a shared secret for the peer public key."""
+    print(f"[PQC-Core] Encapsulating secret...", flush=True)
     with oqs.KeyEncapsulation(KEM_ALG) as kem:
         ciphertext, shared_secret = kem.encap_secret(peer_public_key)
     return ciphertext, shared_secret
 
 def kyber_decapsulate(kem_context: object, ciphertext: bytes) -> bytes:
 
-    print(f"[PQC-Core] Decapsulando el ciphertext recibido...", flush=True)
+    print(f"[PQC-Core] Decapsulating received ciphertext...", flush=True)
     shared_secret = kem_context.decap_secret(ciphertext)
     return shared_secret
 
 
 
 def derive_aes_key(shared_secret: bytes, salt: bytes) -> AESGCM:
-    print("[Crypto] KDF: Derivando llave AES desde el secreto Quantum...", flush=True)
+    print("[Crypto] KDF: Deriving AES key from quantum secret...", flush=True)
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=ENCRYPTION_KEY_LENGTH,
@@ -80,7 +80,7 @@ def receive_message(sock) -> bytes:
         return None
 
 def run_chat_loop(sock, aesgcm, role_name, starts_by_sending):
-    print(f"\n--- Chat QUANTUM-SECURE (AES-GCM) ---")
+    print(f"\n--- QUANTUM-SECURE Chat (AES-GCM) ---")
     try:
         while True:
             if starts_by_sending:
@@ -92,7 +92,7 @@ def run_chat_loop(sock, aesgcm, role_name, starts_by_sending):
             
             data = receive_message(sock)
             if not data: 
-                print("Conexión cerrada.")
+                print("Connection closed.")
                 break
             
             nonce, ciphertext = data[:NONCE_LENGTH], data[NONCE_LENGTH:]
@@ -102,8 +102,8 @@ def run_chat_loop(sock, aesgcm, role_name, starts_by_sending):
                 print(f"[{peer}] {plaintext}")
                 if plaintext == 'exit': break
             except InvalidTag:
-                print("ERROR: Ataque detectado o error de llave.")
+                print("ERROR: Authentication failed — possible tampering or wrong key.")
             
             if not starts_by_sending: starts_by_sending = True
     except Exception as e:
-        print(f"Error en chat: {e}")
+        print(f"Chat error: {e}")

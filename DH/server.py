@@ -41,7 +41,7 @@ def run_server_handshake(conn: socket.socket, server_public_bytes: bytes) -> Tup
     return X_public, salt
 
 def main():
-    """Función principal para ejecutar el servidor."""
+
     print("--- SERVER TERMINAL ---", flush=True)
 
     # 1  p, g parameters

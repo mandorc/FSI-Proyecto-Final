@@ -16,27 +16,27 @@ def main():
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)        
         s.bind((HOST, PORT))
         s.listen()
-        print(f"[Server] Esperando conexión en {HOST}:{PORT}...", flush=True)
+        print(f"[Server] Waiting for connection on {HOST}:{PORT}...", flush=True)
         
         conn, addr = s.accept()
         with conn:
-            print(f"[Server] Conexión de {addr}. Iniciando Handshake Kyber...", flush=True)
+            print(f"[Server] Connection from {addr}. Starting Kyber handshake...", flush=True)
 
             pk_bytes, sk_bytes, server_kem = generate_kyber_keypair()
             time.sleep(STEP_PAUSE)
 
 
-            print(f"[Server] Enviando Llave Pública Kyber ({len(pk_bytes)} bytes)...", flush=True)
+            print(f"[Server] Sending Kyber public key ({len(pk_bytes)} bytes)...", flush=True)
             send_message(conn, pk_bytes)
 
-            print("[Server] Esperando Ciphertext...", flush=True)
+            print("[Server] Waiting for ciphertext...", flush=True)
             ciphertext = receive_message(conn)
             
-            print("[Server] Esperando Salt...", flush=True)
+            print("[Server] Waiting for salt...", flush=True)
             salt = receive_message(conn)
             
             shared_secret = kyber_decapsulate(server_kem, ciphertext)
-            print(f"[Server] ¡Secreto Kyber recuperado! ({len(shared_secret)} bytes)", flush=True)
+            print(f"[Server] Kyber secret recovered ({len(shared_secret)} bytes)", flush=True)
             
 
             aesgcm = derive_aes_key(shared_secret, salt)

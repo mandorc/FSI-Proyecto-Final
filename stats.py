@@ -1,10 +1,13 @@
-
 import sys
 import time
 import os
-import matplotlib.pyplot as plt
-import numpy as np
+import socket
+import json
 
+
+UDP_IP = "127.0.0.1"
+UDP_PORT = 9870
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 sys.path.append(os.path.join(os.getcwd(), 'DH'))
 sys.path.append(os.path.join(os.getcwd(), 'PQC'))
@@ -12,105 +15,66 @@ sys.path.append(os.path.join(os.getcwd(), 'PQC'))
 from DH import protocol as dh_proto
 from PQC import protocol_pqc as pqc_proto
 
-def test_dh_performance(iterations=100):
-    print(f"--- ⚔️  Ronda 1: Diffie-Hellman Clásico ({iterations} iters) ---")
+def run_live_benchmark():
+    print(f"--- 📡 STARTING STREAMING TO PLOTJUGGLER ({UDP_IP}:{UDP_PORT}) ---")
+    print("Instructions: Open PlotJuggler -> Streaming -> Start UDP Server (Port 9870)")
+    print("Press Ctrl+C to stop.")
     
+    dh_params = dh_proto.get_dh_parameters()
+    p = dh_params.parameter_numbers().p
+    g = dh_params.parameter_numbers().g
 
-    params = dh_proto.get_dh_parameters()
-    p = params.parameter_numbers().p
-    g = params.parameter_numbers().g
+    iteration = 0
     
-    start_time = time.time()
-    total_bytes = 0
-    
-    for _ in range(iterations):
+    try:
+        while True:
+            iteration += 1
+            
+            #  METRIC 1: Diffie-Hellman 
+            t0 = time.perf_counter()
+            # 1. Simulate Key Generation
+            a_priv, a_pub = dh_proto.generate_dh_key_pair(p, g)
+            b_priv, b_pub = dh_proto.generate_dh_key_pair(p, g)
+            # 2. Simulate Shared Secret Calculation (The heavy math part)
+            s1 = pow(int.from_bytes(b_pub, 'big'), a_priv, p)
+            
+            dh_time = (time.perf_counter() - t0) * 1000 # Convert to milliseconds
+            dh_size = len(a_pub) + len(b_pub) # Total bytes exchanged
 
-        a_priv, a_pub = dh_proto.generate_dh_key_pair(p, g)
+            # --- METRIC 2: Kyber-512 (Post-Quantum) ---
+            t0 = time.perf_counter()
+            # 1. Server generates keys (KeyGen)
+            pk, sk, server_kem = pqc_proto.generate_kyber_keypair()
+            # 2. Client Encapsulates (Encap)
+            ct, ss_c = pqc_proto.kyber_encapsulate(pk)
+            # 3. Server Decapsulates (Decap)
+            ss_s = pqc_proto.kyber_decapsulate(server_kem, ct)
+            
+            # Manual cleanup is required for liboqs objects
+            server_kem.free() 
+            
+            kyber_time = (time.perf_counter() - t0) * 1000 # Convert to milliseconds
+            kyber_size = len(pk) + len(ct) # Total bytes exchanged
 
-        b_priv, b_pub = dh_proto.generate_dh_key_pair(p, g)
-        
-  
-        total_bytes += len(a_pub) + len(b_pub)
-        
-        # 3. Calculamos secretos (la parte pesada de CPU)
-        # Cliente calcula
-        s1 = pow(int.from_bytes(b_pub, 'big'), a_priv, p)
-        # Servidor calcula
-        s2 = pow(int.from_bytes(a_pub, 'big'), b_priv, p)
+            # --- PACK & SEND (JSON) ---
+            # We send all metrics in a single JSON packet
+            payload = {
+                "iteration": iteration,
+                "time_dh_ms": dh_time,         # Classic Time
+                "time_kyber_ms": kyber_time,   # Quantum Time
+                "size_dh_bytes": dh_size,      # Classic Network Load
+                "size_kyber_bytes": kyber_size # Quantum Network Load
+            }
+            
+            json_msg = json.dumps(payload)
+            sock.sendto(json_msg.encode(), (UDP_IP, UDP_PORT))
+            
+            print(f"Iter {iteration}: DH={dh_time:.2f}ms | Kyber={kyber_time:.2f}ms (Sent via UDP)")
 
-    end_time = time.time()
-    avg_time = (end_time - start_time) / iterations
-    avg_bytes = total_bytes / iterations
-    
-    print(f"   ⏱️  Tiempo promedio: {avg_time:.5f} seg")
-    print(f"   📦 Peso promedio:   {avg_bytes:.0f} bytes")
-    return avg_time, avg_bytes
+            time.sleep(0.1)
 
-def test_kyber_performance(iterations=100):
-    print(f"\n--- 🛡️  Ronda 2: Kyber-512 Post-Quantum ({iterations} iters) ---")
-    
-    start_time = time.time()
-    total_bytes = 0
-    
-    for _ in range(iterations):
-        # 1. Servidor genera (KeyGen)
-        pk, sk, server_kem = pqc_proto.generate_kyber_keypair()
-        
-        # 2. Cliente Encapsula (Encap)
-        ciphertext, shared_secret_client = pqc_proto.kyber_encapsulate(pk)
-        
-        # Tráfico: Llave pública + Ciphertext
-        total_bytes += len(pk) + len(ciphertext)
-        
-        # 3. Servidor Decapsula (Decap)
-        shared_secret_server = pqc_proto.kyber_decapsulate(server_kem, ciphertext)
-        
-        # Limpieza manual (importante en Kyber)
-        server_kem.free()
-
-    end_time = time.time()
-    avg_time = (end_time - start_time) / iterations
-    avg_bytes = total_bytes / iterations
-    
-    print(f"   ⏱️  Tiempo promedio: {avg_time:.5f} seg")
-    print(f"   📦 Peso promedio:   {avg_bytes:.0f} bytes")
-    return avg_time, avg_bytes
-
-def plot_results(dh_res, pqc_res):
-    labels = ['DH (Clásico)', 'Kyber (Quantum)']
-    times = [dh_res[0] * 1000, pqc_res[0] * 1000] # Convertir a milisegundos
-    sizes = [dh_res[1], pqc_res[1]] # Bytes
-
-    x = np.arange(len(labels))
-    width = 0.35
-
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-
-    # Gráfica 1: Velocidad (Menos es mejor)
-    rects1 = ax1.bar(x, times, width, color=['red', 'green'])
-    ax1.set_ylabel('Tiempo de CPU (ms)')
-    ax1.set_title('Velocidad de Cómputo (Menos es mejor)')
-    ax1.set_xticks(x)
-    ax1.set_xticklabels(labels)
-    ax1.bar_label(rects1, padding=3, fmt='%.2f ms')
-
-    # Gráfica 2: Tamaño de Paquete (Menos es mejor para la red)
-    rects2 = ax2.bar(x, sizes, width, color=['orange', 'blue'])
-    ax2.set_ylabel('Bytes transferidos')
-    ax2.set_title('Peso en la Red (Menos es mejor)')
-    ax2.set_xticks(x)
-    ax2.set_xticklabels(labels)
-    ax2.bar_label(rects2, padding=3, fmt='%.0f B')
-
-    fig.tight_layout()
-    print("\n[INFO] Generando gráfica comparativa...")
-    plt.show()
+    except KeyboardInterrupt:
+        print("\n--- Benchmark Stopped ---")
 
 if __name__ == "__main__":
-    print("=== INICIANDO VERSUS: CLÁSICO VS QUANTUM ===")
-    iters = 50 # Número de pruebas
-    
-    dh_t, dh_b = test_dh_performance(iters)
-    pqc_t, pqc_b = test_kyber_performance(iters)
-    
-    plot_results((dh_t, dh_b), (pqc_t, pqc_b))
+    run_live_benchmark()

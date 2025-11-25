@@ -15,20 +15,20 @@ def main():
 
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            print(f"[Client] Conectando a {HOST}:{PORT}...", flush=True)
+            print(f"[Client] Connecting to {HOST}:{PORT}...", flush=True)
             s.connect((HOST, PORT))
             
-            print("\n--- INICIO Handshake Kyber (KEM) ---", flush=True)
+            print("\n--- START Kyber Handshake (KEM) ---", flush=True)
             
-            # 1. Recibir Llave Pública del Servidor
-            print("[Client] Esperando Llave Pública Kyber...", flush=True)
+            # 1. Receive Server's Public Key
+            print("[Client] Waiting for Kyber public key...", flush=True)
             server_pk = receive_message(s)
-            print(f"[Client] PK Recibida ({len(server_pk)} bytes).", flush=True)
+            print(f"[Client] PK received ({len(server_pk)} bytes).", flush=True)
             time.sleep(STEP_PAUSE)
             
 
             ciphertext, shared_secret = kyber_encapsulate(server_pk)
-            print(f"[Client] Secreto encapsulado en ciphertext ({len(ciphertext)} bytes).", flush=True)
+            print(f"[Client] Secret encapsulated into ciphertext ({len(ciphertext)} bytes).", flush=True)
             
 
             send_message(s, ciphertext)
@@ -38,12 +38,12 @@ def main():
             send_message(s, salt)
 
             aesgcm = derive_aes_key(shared_secret, salt)
-            print("[Client] Canal Seguro Post-Quantum Establecido.", flush=True)
+            print("[Client] Post-Quantum secure channel established.", flush=True)
 
             run_chat_loop(s, aesgcm, "Client", True)
 
     except ConnectionRefusedError:
-        print("[Client] Error: No se encuentra el servidor.")
+        print("[Client] Error: Server not found.")
     except Exception as e:
         print(f"[Client] Error: {e}")
 
