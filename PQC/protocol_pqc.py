@@ -1,4 +1,4 @@
-# File: protocol_pqc.py
+
 import os
 import oqs
 from typing import Tuple 
@@ -9,10 +9,8 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidTag
 
-# --- CONFIGURACIÓN QUANTUM ---
 KEM_ALG = "Kyber512"
 
-# Constantes (Igual que antes)
 ENCRYPTION_KEY_LENGTH = 32
 SALT_LENGTH = 16
 NONCE_LENGTH = 12 
@@ -20,13 +18,10 @@ HEADER_LENGTH = 4
 STEP_PAUSE = 1.0 
 KDF_ITERATIONS = 480000
 
-# --- FUNCIONES CORE QUANTUM (KEM) ---
+
 
 def generate_kyber_keypair() -> Tuple[bytes, bytes, object]:
-    """
-    Retorna: (public_key, secret_key, kem_object)
-    ¡IMPORTANTE!: Devolvemos el objeto 'kem' para mantenerlo vivo y reutilizarlo.
-    """
+
     print(f"[PQC-Core] Inicializando {KEM_ALG}...", flush=True)
     kem = oqs.KeyEncapsulation(KEM_ALG)
     
@@ -44,16 +39,12 @@ def kyber_encapsulate(peer_public_key: bytes) -> Tuple[bytes, bytes]:
     return ciphertext, shared_secret
 
 def kyber_decapsulate(kem_context: object, ciphertext: bytes) -> bytes:
-    """
-    CORRECCIÓN: Usamos el 'kem_context' existente (que ya tiene la SK).
-    No creamos uno nuevo con 'with', para evitar el error de memoria.
-    """
+
     print(f"[PQC-Core] Decapsulando el ciphertext recibido...", flush=True)
     shared_secret = kem_context.decap_secret(ciphertext)
     return shared_secret
 
-# --- FUNCIONES AUXILIARES (RED Y KDF) ---
-# (Esto sigue idéntico a tu versión anterior)
+
 
 def derive_aes_key(shared_secret: bytes, salt: bytes) -> AESGCM:
     print("[Crypto] KDF: Derivando llave AES desde el secreto Quantum...", flush=True)

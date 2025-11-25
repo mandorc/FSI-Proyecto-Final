@@ -1,4 +1,4 @@
-# File: server_pqc.py
+
 import socket
 import time
 from protocol_pqc import (
@@ -22,35 +22,26 @@ def main():
         with conn:
             print(f"[Server] Conexión de {addr}. Iniciando Handshake Kyber...", flush=True)
 
-            # 1. Generar Llaves (¡Guardamos server_kem!)
-            # server_kem es el motor que contiene la llave privada en memoria
             pk_bytes, sk_bytes, server_kem = generate_kyber_keypair()
             time.sleep(STEP_PAUSE)
 
-            # 2. Enviar PK
+
             print(f"[Server] Enviando Llave Pública Kyber ({len(pk_bytes)} bytes)...", flush=True)
             send_message(conn, pk_bytes)
 
-            # 3. Recibir Ciphertext
             print("[Server] Esperando Ciphertext...", flush=True)
             ciphertext = receive_message(conn)
             
-            # 4. Recibir Salt
             print("[Server] Esperando Salt...", flush=True)
             salt = receive_message(conn)
             
-            # 5. Decapsular usando el MISMO objeto (server_kem)
-            # Esto evita el crash de memoria
             shared_secret = kyber_decapsulate(server_kem, ciphertext)
             print(f"[Server] ¡Secreto Kyber recuperado! ({len(shared_secret)} bytes)", flush=True)
             
-            # Limpiamos el motor Kyber manualment ahora que tenemos el secreto
-            server_kem.free() 
 
-            # 6. Derivar llave AES
             aesgcm = derive_aes_key(shared_secret, salt)
             
-            # Chat
+
             run_chat_loop(conn, aesgcm, "Server", False)
 
 if __name__ == "__main__":
